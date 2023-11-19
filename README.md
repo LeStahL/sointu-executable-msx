@@ -1,2 +1,2 @@
 # sointu-executable-msx
-Sointu executable music code.
+Easy-to-use tool to create executable music using sointu.

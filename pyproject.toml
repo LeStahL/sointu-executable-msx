@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "sointuexemsx"
+version = "0.1.0"
+description = "Easy-to-use tool to create executable music using Sointu."
+authors = ["Alexander Kraus <nr4@z10.info>"]
+license = "GPLv3"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.13"
+importlib = "^1.0.4"
+
+[tool.poetry.group.dev.dependencies]
+pyinstaller = "^6.2.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

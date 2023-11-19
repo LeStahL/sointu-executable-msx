@@ -1,6 +1,0 @@
-[submodule "external/sointu"]
-	path = external/sointu
-	url = https://github.com/vsariola/sointu.git
-[submodule "external/cmake-find-or-download"]
-	path = external/cmake-find-or-download
-	url = https://github.com/LeStahL/cmake-find-or-download.git
