@@ -35,6 +35,11 @@ options:
                         Enforce sample size for 4klang builds.
 ```
 
+### Examples
+For packing Sointu track `example.yml` into an executable, use `sointuexemsx example.yml`.
+
+For packing a 4klang track file `4klang.inc` using the 4klang version `4klang.asm` into an executable, use `sointuexemsx 4klang.inc -4 4klang.asm`.
+
 # Build
 Download and install Python 3.11 with pip (The official binary installer should do this).
 
