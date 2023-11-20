@@ -1,5 +1,5 @@
 # sointu-executable-msx
-Easy-to-use tool to create executable music using Sointu.
+Easy-to-use tool to create executable music using Sointu (https://github.com/vsariola/sointu).
 
 It downloads nasm, Crinkler and Sointu automatically and runs them to generate an executable from Sointu track YAML files. For this purpose, it contains a small x86 assembly player and wav writer.
 

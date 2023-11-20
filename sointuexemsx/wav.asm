@@ -7,9 +7,21 @@
 %define CREATE_ALWAYS 2
 %define GENERIC_WRITE 0x40000000
 
+%ifdef USE_4KLANG
+	%define LENGTH_IN_SAMPLES MAX_SAMPLES
+%else ; USE_4KLANG
+	%define LENGTH_IN_SAMPLES SU_LENGTH_IN_SAMPLES
+	%ifdef SU_SAMPLE_FLOAT
+		%define SAMPLE_FLOAT
+	%endif ; SU_SAMPLE_FLOAT
+	%define CHANNEL_COUNT SU_CHANNEL_COUNT
+	%define SAMPLE_RATE SU_SAMPLE_RATE
+	%define SAMPLE_SIZE SU_SAMPLE_SIZE
+%endif ; USE_4KLANG
+
 section .bss
 sound_buffer:
-	resb SU_LENGTH_IN_SAMPLES * SU_SAMPLE_SIZE * SU_CHANNEL_COUNT
+	resb LENGTH_IN_SAMPLES * SAMPLE_SIZE * CHANNEL_COUNT
 
 file:
 	resd 1
@@ -25,24 +37,24 @@ filename:
 ; This is the wave file header.
 wave_file:
 	db "RIFF"
-	dd wave_file_end + SU_LENGTH_IN_SAMPLES * SU_SAMPLE_SIZE * SU_CHANNEL_COUNT - wave_file
+	dd wave_file_end + LENGTH_IN_SAMPLES * SAMPLE_SIZE * CHANNEL_COUNT - wave_file
 	db "WAVE"
 	db "fmt "
 wave_format_end:
 	dd wave_format_end - wave_file
-%ifdef SU_SAMPLE_FLOAT
+%ifdef SAMPLE_FLOAT
 	dw WAVE_FORMAT_IEEE_FLOAT
-%else ; SU_SAMPLE_FLOAT
+%else ; SAMPLE_FLOAT
 	dw WAVE_FORMAT_PCM
-%endif ; SU_SAMPLE_FLOAT
-	dw SU_CHANNEL_COUNT
-	dd SU_SAMPLE_RATE
-	dd SU_SAMPLE_SIZE * SU_SAMPLE_RATE * SU_CHANNEL_COUNT
-	dw SU_SAMPLE_SIZE * SU_CHANNEL_COUNT
-	dw SU_SAMPLE_SIZE * 8
+%endif ; SAMPLE_FLOAT
+	dw CHANNEL_COUNT
+	dd SAMPLE_RATE
+	dd SAMPLE_SIZE * SAMPLE_RATE * CHANNEL_COUNT
+	dw SAMPLE_SIZE * CHANNEL_COUNT
+	dw SAMPLE_SIZE * 8
 wave_header_end:
 	db "data"
-	dd wave_file_end + SU_LENGTH_IN_SAMPLES * SU_SAMPLE_SIZE * SU_CHANNEL_COUNT - wave_header_end
+	dd wave_file_end + LENGTH_IN_SAMPLES * SAMPLE_SIZE * CHANNEL_COUNT - wave_header_end
 wave_file_end:
 
 section .text
@@ -51,6 +63,9 @@ symbols:
 	extern _WriteFile@20
 	extern _CloseHandle@4
     extern _ExitProcess@4
+%ifdef USE_4KLANG
+	extern __4klang_render@4
+%endif ; USE_4KLANG
 
 	global _mainCRTStartup
 _mainCRTStartup:
@@ -65,7 +80,11 @@ _mainCRTStartup:
 
 	; We render the complete track here.
 	push sound_buffer
+%ifdef USE_4KLANG
+	call __4klang_render@4
+%else ; USE_4KLANG
 	call _su_render_song@4
+%endif ; USE_4KLANG
 
 	; Now we open the file and save the track.
 	push 0x0
@@ -89,7 +108,7 @@ _mainCRTStartup:
 	; There we write the actual samples
 	push 0x0
 	push bytes_written
-	push SU_LENGTH_IN_SAMPLES * SU_CHANNEL_COUNT * SU_SAMPLE_SIZE
+	push LENGTH_IN_SAMPLES * CHANNEL_COUNT * SAMPLE_SIZE
 	push sound_buffer
 	push dword [file]
 	call _WriteFile@20

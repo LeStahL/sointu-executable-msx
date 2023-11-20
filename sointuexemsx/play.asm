@@ -8,9 +8,21 @@
 %define TIME_SAMPLES 0x2
 %define PM_REMOVE 0x1
 
+%ifdef USE_4KLANG
+	%define LENGTH_IN_SAMPLES MAX_SAMPLES
+%else ; USE_4KLANG
+	%define LENGTH_IN_SAMPLES SU_LENGTH_IN_SAMPLES
+	%ifdef SU_SAMPLE_FLOAT
+		%define SAMPLE_FLOAT
+	%endif ; SU_SAMPLE_FLOAT
+	%define CHANNEL_COUNT SU_CHANNEL_COUNT
+	%define SAMPLE_RATE SU_SAMPLE_RATE
+	%define SAMPLE_SIZE SU_SAMPLE_SIZE
+%endif ; USE_4KLANG
+
 section .bss
 sound_buffer:
-	resb SU_LENGTH_IN_SAMPLES * SU_SAMPLE_SIZE * SU_CHANNEL_COUNT
+	resb LENGTH_IN_SAMPLES * SAMPLE_SIZE * CHANNEL_COUNT
 
 wave_out_handle:
 	resd 1
@@ -22,21 +34,21 @@ message:
 
 section .data
 wave_format:
-%ifdef SU_SAMPLE_FLOAT
+%ifdef SAMPLE_FLOAT
 	dw WAVE_FORMAT_IEEE_FLOAT
-%else ; SU_SAMPLE_FLOAT
+%else ; SAMPLE_FLOAT
 	dw WAVE_FORMAT_PCM
-%endif ; SU_SAMPLE_FLOAT
-	dw SU_CHANNEL_COUNT
-	dd SU_SAMPLE_RATE 
-	dd SU_SAMPLE_SIZE * SU_SAMPLE_RATE * SU_CHANNEL_COUNT
-	dw SU_SAMPLE_SIZE * SU_CHANNEL_COUNT
-	dw SU_SAMPLE_SIZE * 8
+%endif ; SAMPLE_FLOAT
+	dw CHANNEL_COUNT
+	dd SAMPLE_RATE 
+	dd SAMPLE_SIZE * SAMPLE_RATE * CHANNEL_COUNT
+	dw SAMPLE_SIZE * CHANNEL_COUNT
+	dw SAMPLE_SIZE * 8
 	dw 0
 
 wave_header:
 	dd sound_buffer
-	dd SU_LENGTH_IN_SAMPLES * SU_SAMPLE_SIZE * SU_CHANNEL_COUNT
+	dd LENGTH_IN_SAMPLES * SAMPLE_SIZE * CHANNEL_COUNT
 	times 2 dd 0
 	dd WHDR_PREPARED
 	times 4 dd 0
@@ -57,9 +69,10 @@ symbols:
 	extern _PeekMessageA@20
 	extern _TranslateMessage@4
 	extern _DispatchMessageA@4
-%ifdef DELAY
     extern _Sleep@4
-%endif ; DELAY
+%ifdef USE_4KLANG
+	extern __4klang_render@4
+%endif ; USE_4KLANG
 
 	global _mainCRTStartup
 _mainCRTStartup:
@@ -72,16 +85,20 @@ _mainCRTStartup:
 
 	times 2 push 0
 	push sound_buffer
+%ifdef USE_4KLANG
+	lea eax, __4klang_render@4
+%else ; USE_4KLANG
 	lea eax, _su_render_song@4
+%endif ; USE_4KLANG
 	push eax
 	times 2 push 0
 	call _CreateThread@24
 
-%ifdef DELAY
+%ifdef ADD_DELAY
     ; We can't start playing too early or the missing samples will be audible.
 	push DELAY_MS
 	call _Sleep@4
-%endif ; DELAY
+%endif ; ADD_DELAY
 
 	; We render in the background while playing already. Fortunately,
 	; Windows is slow with the calls below, so we're not worried that
@@ -120,7 +137,11 @@ mainloop:
 	push dword [wave_out_handle]
 	call _waveOutGetPosition@12
 
-	cmp dword [sample], SU_LENGTH_IN_SAMPLES
+	; We need to stall here to avoid clicks.
+	push 20
+	call _Sleep@4
+
+	cmp dword [sample], LENGTH_IN_SAMPLES
 	jne mainloop
 
 exit:
