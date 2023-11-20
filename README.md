@@ -8,18 +8,31 @@ You need a recent version of the Windows SDK installed. This can be achieved by 
 
 ## Usage
 ```
-usage: sointu-executable-msx [-h] [-b,--brutal] [-n,--nfo NFO] [-d,--delay DELAY] input
+usage: sointu-executable-msx [-h] [-b,--brutal] [-n,--nfo NFO] [-d,--delay DELAY] [-s,--sointu-compile SOINTUCOMPILE]
+                             [-4,--4klang FOURKLANG] [--sample-type {float,pcm}] [--channel-count CHANNELCOUNT]
+                             [--sample-size SAMPLESIZE]
+                             input
 
 Easy-to-use tool to create executable music using Sointu.
 
 positional arguments:
-  input             Track file to compile.
+  input                 Track file to compile.
 
 options:
-  -h, --help        show this help message and exit
-  -b,--brutal       Use brutal Crinkler settings (takes much longer, but executable will be smaller).
-  -n,--nfo NFO      Add a NFO to the release archive.
-  -d,--delay DELAY  Add a delay in ms before starting to play the track (useful for computationally heavy tracks).
+  -h, --help            show this help message and exit
+  -b,--brutal           Use brutal Crinkler settings (takes much longer, but executable will be smaller).
+  -n,--nfo NFO          Add a NFO to the release archive.
+  -d,--delay DELAY      Add a delay in ms before starting to play the track (useful for computationally heavy tracks).
+  -s,--sointu-compile SOINTUCOMPILE
+                        Override the sointu-compile executable to use.
+  -4,--4klang FOURKLANG
+                        Use this 4klang.asm to pack a 4klang track.
+  --sample-type {float,pcm}
+                        Enforce the sample type for 4klang builds.
+  --channel-count CHANNELCOUNT
+                        Enforce channel count for 4klang builds.
+  --sample-size SAMPLESIZE
+                        Enforce sample size for 4klang builds.
 ```
 
 # Build
