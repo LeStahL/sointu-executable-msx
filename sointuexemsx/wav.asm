@@ -66,6 +66,9 @@ symbols:
 %ifdef USE_4KLANG
 	extern __4klang_render@4
 %endif ; USE_4KLANG
+%ifdef SU_LOAD_GMDLS
+	extern _su_load_gmdls@0
+%endif ; SU_LOAD_GMDLS
 
 	global _mainCRTStartup
 _mainCRTStartup:
@@ -75,7 +78,7 @@ _mainCRTStartup:
 	sub	 esp, 0x10
 
 %ifdef SU_LOAD_GMDLS
-	call _su_load_gmdls
+	call _su_load_gmdls@0
 %endif ; SU_LOAD_GMDLS
 
 	; We render the complete track here.

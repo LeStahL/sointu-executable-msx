@@ -73,6 +73,9 @@ symbols:
 %ifdef USE_4KLANG
 	extern __4klang_render@4
 %endif ; USE_4KLANG
+%ifdef SU_LOAD_GMDLS
+	extern _su_load_gmdls@0
+%endif ; SU_LOAD_GMDLS
 
 	global _mainCRTStartup
 _mainCRTStartup:
@@ -80,7 +83,7 @@ _mainCRTStartup:
 	; We can also skip the prologue; Windows doesn't mind.
 
 %ifdef SU_LOAD_GMDLS
-	call _su_load_gmdls
+	call _su_load_gmdls@0
 %endif ; SU_LOAD_GMDLS
 
 	times 2 push 0
