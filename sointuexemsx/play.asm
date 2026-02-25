@@ -20,6 +20,13 @@
 	%define SAMPLE_SIZE SU_SAMPLE_SIZE
 %endif ; USE_4KLANG
 
+%ifdef SU_SYNC
+section .bss
+	global _syncBuf
+_syncBuf:
+	resb SU_SYNCBUFFER_LENGTH
+%endif ; SU_SYNC
+
 section .bss
 sound_buffer:
 	resb LENGTH_IN_SAMPLES * SAMPLE_SIZE * CHANNEL_COUNT
