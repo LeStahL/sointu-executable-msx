@@ -14,7 +14,7 @@ You need to install i386 libraries in `/usr/lib/i386-linux-gnu` for libc6, pipew
 ## Usage
 ```
 usage: sointu-executable-msx [-h] [-b,--brutal] [-n,--nfo NFO] [-d,--delay DELAY] [-s,--sointu-compile SOINTUCOMPILE] [-4,--4klang FOURKLANG] [--sample-type {float,pcm}]
-                             [--channel-count CHANNELCOUNT] [--sample-size SAMPLESIZE] [--force-download] [--ld LD] [--build-folder BUILDFOLDER]
+                             [--channel-count CHANNELCOUNT] [--sample-size SAMPLESIZE] [--force-download] [--ld LD] [--build-folder BUILDFOLDER] [--disable-upx]
                              input
 
 Easy-to-use tool to create executable music using Sointu.
@@ -41,6 +41,7 @@ options:
   --ld LD               Use this ld binary instead of the one in the PATH variable.
   --build-folder BUILDFOLDER
                         Use a specific build folder instead of a temporary dir.
+  --disable-upx         Disable UPX for drop-in replacement compressing linkers for ld.
 ```
 
 ### Examples
