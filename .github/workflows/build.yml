@@ -1,0 +1,41 @@
+strategy:
+  matrix:
+    os: [ubuntu-latest, windows-latest, macos-latest]
+
+runs-on: ${{ matrix.os }}
+
+name: build-binary
+
+on:
+push:
+tags:
+- "v*"
+workflow_dispatch:
+
+jobs:
+build:
+runs-on: ubuntu-latest
+
+steps:
+  - name: Checkout repo
+    uses: actions/checkout@v4
+
+  - name: Install Python
+    uses: actions/setup-python@v5
+    with:
+      python-version: "3.11"
+
+  - name: Install Poetry
+    run: pip install poetry
+
+  - name: Install dependencies
+    run: poetry install --no-interaction --no-root
+
+  - name: Install PyInstaller
+    run: poetry run pyinstaller pyinstaller.spec
+
+  - name: Upload artifact
+    uses: actions/upload-artifact@v4
+    with:
+      name: binary
+      path: dist/
