@@ -1,10 +1,12 @@
 name: build-binary
 
 on:
+  pull_request:
+    branches:
+      - master
   push:
     branches:
       - master
-      - dev
     tags:
       - "v*"
 
