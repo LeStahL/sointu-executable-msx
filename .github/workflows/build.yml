@@ -20,14 +20,13 @@ jobs:
         config:
           - os: ubuntu-latest
           - os: windows-latest
-          - os: macos-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Install Python 3.11
+      - name: Install Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
       - name: Install poetry
         run: pip install poetry
       - name: Install dependencies

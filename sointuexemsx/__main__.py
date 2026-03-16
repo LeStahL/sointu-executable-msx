@@ -10,13 +10,21 @@ from cached_path import (
     get_cache_dir,
 )
 from pathlib import Path
-from winreg import (
-    ConnectRegistry,
-    OpenKey,
-    HKEY_LOCAL_MACHINE,
-    HKEYType,
-    QueryValueEx,
-)
+from platform import system
+if system() == 'Windows':
+    from winreg import (
+        ConnectRegistry,
+        OpenKey,
+        HKEY_LOCAL_MACHINE,
+        HKEYType,
+        QueryValueEx,
+    )
+elif system() == 'Linux':
+    from stat import (
+        S_IXUSR,
+        S_IXGRP,
+        S_IXOTH,
+    )
 from subprocess import (
     run,
     CompletedProcess,
@@ -34,14 +42,19 @@ from shutil import (
     copyfile,
     rmtree,
 )
-from enum import StrEnum
+from enum import (
+    IntEnum,
+    auto,
+)
 from json import loads
 
 
-class DownloadUrls(StrEnum):
-    Crinkler = 'https://github.com/runestubbe/Crinkler/releases/download/v2.3/crinkler23.zip!crinkler23/Win64/Crinkler.exe'
-    Nasm = 'https://www.nasm.us/pub/nasm/releasebuilds/2.16.01/win64/nasm-2.16.01-win64.zip!nasm-2.16.01/nasm.exe'
-    SointuCompile = 'https://github.com/vsariola/sointu/releases/latest/download/sointu-Windows.zip!sointu-windows/sointu-compile.exe'
+class DependencyType(IntEnum):
+    Crinkler = auto()
+    Nasm = auto()
+    SointuCompile = auto()
+    Upx = auto()
+    Ld = auto()
 
 
 def clear_cached_path(
@@ -86,6 +99,9 @@ if __name__ == '__main__':
     parser.add_argument('--channel-count', dest='channelCount', default=2, help='Enforce channel count for 4klang builds.')
     parser.add_argument('--sample-size', dest='sampleSize', default=4, help='Enforce sample size for 4klang builds.')
     parser.add_argument('--force-download', dest='forceDownload', action='store_true', help='Force-redownload the cached dependencies.')
+    parser.add_argument('--ld', dest='ld', default='ld', help='Use this ld binary instead of the one in the PATH variable.')
+    parser.add_argument('--build-folder', dest='buildFolder', default=None, help='Use a specific build folder instead of a temporary dir.')
+    parser.add_argument('--disable-upx', dest='disableUpx', action='store_true', help='Disable UPX for drop-in replacement compressing linkers for ld.')
     args: Namespace = parser.parse_args()
 
     # Check argument sanity
@@ -109,80 +125,124 @@ if __name__ == '__main__':
         print("4klang assembly file does not exist:", args.fourKlang)
         exit(1)
 
+    # Download dependencies.
+    downloadUrls = {}
+    if system() == 'Windows':
+        downloadUrls.update({
+            DependencyType.Crinkler: 'https://github.com/runestubbe/Crinkler/releases/download/v2.3/crinkler23.zip!crinkler23/Win64/Crinkler.exe',
+            DependencyType.Nasm: 'https://www.nasm.us/pub/nasm/releasebuilds/2.16.01/win64/nasm-2.16.01-win64.zip!nasm-2.16.01/nasm.exe',
+            DependencyType.SointuCompile: 'https://github.com/vsariola/sointu/releases/latest/download/sointu-Windows.zip!sointu-windows/sointu-compile.exe',
+        })
+    elif system() == 'Linux':
+        downloadUrls.update({
+            DependencyType.SointuCompile: 'https://github.com/vsariola/sointu/releases/latest/download/sointu-Linux.zip!sointu-Linux/sointu-compile',
+        })
+
     if args.forceDownload:
         print("Clearing cache.")
-        for url in DownloadUrls:
+        for url in downloadUrls.values():
             for deletedPath in clear_cached_path(url.value):
                 print(f"Removing {deletedPath}")
 
-    # Download dependencies.
-    crinkler: Path = cached_path(
-        url_or_filename=DownloadUrls.Crinkler.value,
-        extract_archive=True,
-    )
-    nasm: Path = cached_path(
-        url_or_filename=DownloadUrls.Nasm.value,
-        extract_archive=True,
-    )
-    sointu: Path = cached_path(
-        url_or_filename=DownloadUrls.SointuCompile.value,
-        extract_archive=True,
-    ) if args.sointuCompile is None else Path(args.sointuCompile)
+    programs = {}
+    for program in downloadUrls.keys():
+        programs[program] = cached_path(
+            url_or_filename=downloadUrls[program],
+            extract_archive=True,
+        )
+        if system() == 'Linux':
+            programs[program].chmod(programs[program].stat().st_mode | S_IXUSR | S_IXGRP | S_IXOTH)
 
-    # Find Windows SDK path.
-    registry: HKEYType = ConnectRegistry(None, HKEY_LOCAL_MACHINE)
-    windowsSdkKey: HKEYType = OpenKey(registry, r'SOFTWARE\WOW6432Node\Microsoft\Microsoft SDKs\Windows\v10.0')
-    windowsSdkProductVersion, _ = QueryValueEx(windowsSdkKey, r'ProductVersion')
-    windowsSdkInstallFolder, _ = QueryValueEx(windowsSdkKey, r'InstallationFolder')
-    windowsSdkKey.Close()
-    registry.Close()
-    windowsSdkLibPath: Path = Path(windowsSdkInstallFolder) / 'Lib' / '{}.0'.format(windowsSdkProductVersion) / 'um' / 'x86'
+
+    if args.sointuCompile is not None:
+        programs[DependencyType.SointuCompile] = Path(args.sointuCompile)
+            
+    if system() == 'Linux':
+        programs.update({
+            DependencyType.Nasm: Path('nasm'),
+            DependencyType.Upx: Path('upx'),
+            DependencyType.Ld: Path(args.ld),
+        })
+
+    # Find required library paths
+    libpaths = []
+    if system() == 'Windows':
+        # Find Windows SDK path.
+        registry: HKEYType = ConnectRegistry(None, HKEY_LOCAL_MACHINE)
+        windowsSdkKey: HKEYType = OpenKey(registry, r'SOFTWARE\WOW6432Node\Microsoft\Microsoft SDKs\Windows\v10.0')
+        windowsSdkProductVersion, _ = QueryValueEx(windowsSdkKey, r'ProductVersion')
+        windowsSdkInstallFolder, _ = QueryValueEx(windowsSdkKey, r'InstallationFolder')
+        windowsSdkKey.Close()
+        registry.Close()
+        windowsSdkLibPath: Path = Path(windowsSdkInstallFolder) / 'Lib' / f'{windowsSdkProductVersion}.0' / 'um' / 'x86'
+        libpaths.append(windowsSdkLibPath)
 
     # Determine track base name without extension.
     base, _ = splitext(basename(args.input[0]))
     dir = dirname(args.input[0])
 
+    if args.buildFolder:
+        Path(args.buildFolder).mkdir(exist_ok=True, parents=True)
     # Run sointu-compile on the track.
-    with TemporaryDirectory() as temporaryDirectory:
+    with TemporaryDirectory(
+        dir=args.buildFolder,
+        delete=args.buildFolder is None,
+    ) as temporaryDirectory:
         outputDirectory: Path = Path(temporaryDirectory)
-        print('Exporting to:', outputDirectory) 
+        print('Exporting to:', outputDirectory)
 
+        objectFileExtension: str = ""
+        binaryFileExtension: str = ""
+        platformPrefix: str = ""
+        nasmAbi: str = ""
+        if system() == 'Windows':
+            objectFileExtension = '.obj'
+            binaryFileExtension = '.exe'
+            platformPrefix = 'win32'
+            nasmAbi = 'win32'
+        elif system() == 'Linux':
+            objectFileExtension = '.o'
+            binaryFileExtension = ''
+            platformPrefix = 'elf32'
+            nasmAbi = 'elf32'
+
+        trackInclude: Path = outputDirectory / f'{base}.inc'
         nasmArgs: list[str] = [
-            str(nasm),
-            '-f', 'win32',
+            str(programs[DependencyType.Nasm]),
+            '-f', nasmAbi,
             '-I', str(outputDirectory),
-            '-DFILENAME="{}.wav"'.format(base),
-            '-DTRACK_INCLUDE="{}"'.format(outputDirectory / '{}.inc'.format(base)),
+            f'-DFILENAME="{base}.wav"',
+            f'-DTRACK_INCLUDE="{trackInclude}"',
         ]
 
         if args.delay != 0:
             nasmArgs += [
                 '-DADD_DELAY',
-                '-DDELAY_MS={}'.format(args.delay),
+                f'-DDELAY_MS={args.delay}',
             ]
 
         if args.fourKlang is not None:
             nasmArgs += [
                 '-DUSE_4KLANG',
-                '-DCHANNEL_COUNT={}'.format(args.channelCount),
-                '-DSAMPLE_SIZE={}'.format(args.sampleSize),
+                f'-DCHANNEL_COUNT={args.channelCount}',
+                f'-DSAMPLE_SIZE={args.sampleSize}',
             ]
             if args.sampleType == 'float':
                 nasmArgs.append('-DSAMPLE_FLOAT')
 
             # Copy the track files to the output directory.
             print("copying:")
-            print(args.fourKlang, "->", outputDirectory / '{}.asm'.format(base))
+            print(args.fourKlang, "->", outputDirectory / f'{base}.asm')
             
-            copyfile(args.fourKlang, outputDirectory / '{}.asm'.format(base))
-            copyfile(args.input[0], outputDirectory  / '{}.inc'.format(base))
+            copyfile(args.fourKlang, outputDirectory / f'{base}.asm')
+            copyfile(args.input[0], outputDirectory  / f'{base}.inc')
         else:
             # Run sointu-compile to convert the track to assembly.
             result: CompletedProcess = run([
-                sointu,
+                str(programs[DependencyType.SointuCompile]),
                 '-arch', '386',
                 '-e', 'asm,inc',
-                '-o', outputDirectory / '{}.asm'.format(base),
+                '-o', outputDirectory / f'{base}.asm',
                 args.input[0],
             ])
 
@@ -193,8 +253,8 @@ if __name__ == '__main__':
 
         # Assemble the wav writer.
         result: CompletedProcess = run(nasmArgs + [
-            str(files(sointuexemsx) / 'wav.asm'),
-            '-o', str(outputDirectory / 'wav.obj'),
+            str(files(sointuexemsx) / f'wav.{platformPrefix}.asm'),
+            '-o', str(outputDirectory / f'wav{objectFileExtension}'),
         ])
 
         if result.returncode != 0:
@@ -204,8 +264,8 @@ if __name__ == '__main__':
 
         # Assemble the player.
         result: CompletedProcess = run(nasmArgs + [
-            str(files(sointuexemsx) / 'play.asm'),
-            '-o', str(outputDirectory / 'play.obj'),
+            str(files(sointuexemsx) / f'play.{platformPrefix}.asm'),
+            '-o', str(outputDirectory / f'play{objectFileExtension}'),
         ])
 
         if result.returncode != 0:
@@ -215,11 +275,11 @@ if __name__ == '__main__':
 
         # Assemble the track.
         result: CompletedProcess = run([
-            nasm,
-            '-f', 'win32',
+            str(programs[DependencyType.Nasm]),
+            '-f', nasmAbi,
             '-I', outputDirectory,
-            outputDirectory / '{}.asm'.format(base),
-            '-o', outputDirectory / '{}.obj'.format(base),
+            outputDirectory / f'{base}.asm',
+            '-o', outputDirectory / f'{base}{objectFileExtension}',
         ])
 
         if result.returncode != 0:
@@ -227,38 +287,114 @@ if __name__ == '__main__':
         else:
             print("Assembled track.")
 
-        crinklerArgs: list[str] = [
-            str(crinkler),
-            '/LIBPATH:"{}"'.format(outputDirectory),
-            '/LIBPATH:"{}"'.format(windowsSdkLibPath),
-            'Winmm.lib',
-            'Kernel32.lib',
-            'User32.lib',
-            str(outputDirectory / '{}.obj'.format(base)),
-        ]
+        wavBinary = outputDirectory / f'{base}-wav{binaryFileExtension}'
+        playBinary = outputDirectory / f'{base}-play{binaryFileExtension}'
+        if system() == 'Windows':
+            crinklerArgs: list[str] = [
+                str(programs[DependencyType.Crinkler]),
+                f'/LIBPATH:"{outputDirectory}"',
+                *map(
+                    lambda libpath: f'/LIBPATH:"{libpath}"',
+                    libpaths,
+                ),
+                'Winmm.lib',
+                'Kernel32.lib',
+                'User32.lib',
+                str(outputDirectory / f'{base}{objectFileExtension}'),
+                '/COMPMODE:VERYSLOW' if args.brutal else '/COMPMODE:FAST',
+            ]
 
-        # Link wav writer.
-        # Note: When using the list based api, quotes in arguments
-        # are not escaped properly.
-        result: CompletedProcess = run(' '.join(map(str, crinklerArgs + [
-            outputDirectory / 'wav.obj',
-            '/OUT:{}'.format(outputDirectory / '{}-wav.exe'.format(base)),
-            '/COMPMODE:VERYSLOW' if args.brutal else '/COMPMODE:FAST',
-        ])), shell=True)
+            # Link wav writer.
+            # Note: When using the list based api, quotes in arguments
+            # are not escaped properly.
+            result: CompletedProcess = run(' '.join(map(str, crinklerArgs + [
+                outputDirectory / f'wav{objectFileExtension}',
+                f'/OUT:{wavBinary}',
+            ])), shell=True)
+            if result.returncode != 0:
+                print("Could not link wav writer.")
+            else:
+                print("Linked wav writer.")
 
-        # Link player.
-        # Note: When using the list based api, quotes in arguments
-        # are not escaped properly.
-        result: CompletedProcess = run(' '.join(map(str, crinklerArgs + [
-            outputDirectory / 'play.obj',
-            '/OUT:{}'.format(outputDirectory / '{}-play.exe'.format(base)),
-            '/COMPMODE:VERYSLOW' if args.brutal else '/COMPMODE:FAST',
-        ])), shell=True)
+            # Link player.
+            # Note: When using the list based api, quotes in arguments
+            # are not escaped properly.
+            result: CompletedProcess = run(' '.join(map(str, crinklerArgs + [
+                outputDirectory / f'play{objectFileExtension}',
+                f'/OUT:{playBinary}',
+            ])), shell=True)
+            if result.returncode != 0:
+                print("Could not link player.")
+            else:
+                print("Linked player.")
+        elif system() == 'Linux':
+            ldArgs: list[str] = [
+                str(programs[DependencyType.Ld]),
+                str(outputDirectory / f'{base}{objectFileExtension}'),
+                '-no-pie',
+                '-m', 'elf_i386',
+                '-lc',
+                '-e', 'main',
+                '-I', '/usr/lib/i386-linux-gnu',
+                '-dynamic-linker', '/lib/ld-linux.so.2',
+            ]
+
+            # Link wav writer.
+            # Note: When using the list based api, quotes in arguments
+            # are not escaped properly.
+            result: CompletedProcess = run(' '.join(map(str, ldArgs + [
+                outputDirectory / f'wav{objectFileExtension}',
+                '-o', wavBinary,
+            ])), shell=True)
+            if result.returncode != 0:
+                print("Could not link wav writer.")
+            else:
+                print("Linked wav writer.")
+
+            # Link player.
+            # Note: When using the list based api, quotes in arguments
+            # are not escaped properly.
+            result: CompletedProcess = run(' '.join(map(str, ldArgs + [
+                outputDirectory / f'play{objectFileExtension}',
+                '-o', playBinary,
+                '-lasound',
+            ])), shell=True)
+            if result.returncode != 0:
+                print("Could not link player.")
+            else:
+                print("Linked player.")
+
+            if not args.disableUpx:
+                # Compress wav writer using UPX.
+                # Note: When using the list based api, quotes in arguments
+                # are not escaped properly.
+                result: CompletedProcess = run(' '.join(map(str, [
+                    str(programs[DependencyType.Upx]),
+                    '--best',
+                    outputDirectory / f'{base}-wav{binaryFileExtension}',
+                ])), shell=True)
+                if result.returncode != 0:
+                    print("Could not upx-compress wav writer.")
+                else:
+                    print("upx-compressed wav writer.")
+
+                # Compress player using UPX.
+                # Note: When using the list based api, quotes in arguments
+                # are not escaped properly.
+                result: CompletedProcess = run(' '.join(map(str, [
+                    str(programs[DependencyType.Upx]),
+                    '--best',
+                    outputDirectory / f'{base}-play{binaryFileExtension}',
+                ])), shell=True)
+                if result.returncode != 0:
+                    print("Could not upx-compress player.")
+                else:
+                    print("upx-compressed player.")
 
         # Create release archive.
-        zipFile: ZipFile = ZipFile('{}.zip'.format(base), 'w')
-        zipFile.write(filename=str(outputDirectory / '{}-wav.exe'.format(base)), arcname='{}/{}-wav.exe'.format(base, base))
-        zipFile.write(filename=str(outputDirectory / '{}-play.exe'.format(base)), arcname='{}/{}-play.exe'.format(base, base))
+        zipFile: ZipFile = ZipFile(f'{base}.zip', 'w')
+        zipFile.write(filename=str(outputDirectory / f'{base}-wav{binaryFileExtension}'), arcname=f'{base}/{base}-wav{binaryFileExtension}')
+        zipFile.write(filename=str(outputDirectory / f'{base}-play{binaryFileExtension}'), arcname=f'{base}/{base}-play{binaryFileExtension}')
         if args.nfo is not None:
             nfoBaseWithExt = basename(args.nfo)
             zipFile.write(filename=args.nfo, arcname='{}/{}'.format(base, nfoBaseWithExt))

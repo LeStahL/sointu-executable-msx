@@ -4,13 +4,17 @@ Easy-to-use tool to create executable music using Sointu (https://github.com/vsa
 It downloads nasm, Crinkler and Sointu automatically and runs them to generate an executable from Sointu track YAML files. For this purpose, it contains a small x86 assembly player and wav writer.
 
 ## Prequisites
+
+### Windows
 You need a recent version of the Windows SDK installed. This can be achieved by installing either Visual Studio or MSVC build tools, and enabling the "Windows 10 SDK" workload in the installer.
+
+### Linux
+You need to install i386 libraries in `/usr/lib/i386-linux-gnu` for libc6, pipewire-alsa and libasound. Also make sure to install upx, ld and nasm using your package manager. Note: GM.DLS will not work.
 
 ## Usage
 ```
-usage: sointu-executable-msx [-h] [-b,--brutal] [-n,--nfo NFO] [-d,--delay DELAY] [-s,--sointu-compile SOINTUCOMPILE]
-                             [-4,--4klang FOURKLANG] [--sample-type {float,pcm}] [--channel-count CHANNELCOUNT]
-                             [--sample-size SAMPLESIZE]
+usage: sointu-executable-msx [-h] [-b,--brutal] [-n,--nfo NFO] [-d,--delay DELAY] [-s,--sointu-compile SOINTUCOMPILE] [-4,--4klang FOURKLANG] [--sample-type {float,pcm}]
+                             [--channel-count CHANNELCOUNT] [--sample-size SAMPLESIZE] [--force-download] [--ld LD] [--build-folder BUILDFOLDER] [--disable-upx]
                              input
 
 Easy-to-use tool to create executable music using Sointu.
@@ -33,6 +37,11 @@ options:
                         Enforce channel count for 4klang builds.
   --sample-size SAMPLESIZE
                         Enforce sample size for 4klang builds.
+  --force-download      Force-redownload the cached dependencies.
+  --ld LD               Use this ld binary instead of the one in the PATH variable.
+  --build-folder BUILDFOLDER
+                        Use a specific build folder instead of a temporary dir.
+  --disable-upx         Disable UPX for drop-in replacement compressing linkers for ld.
 ```
 
 ### Examples

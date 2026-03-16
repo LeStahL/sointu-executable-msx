@@ -17,8 +17,10 @@ a = Analysis([
     pathex=[],
     binaries=[],
     datas=[
-        (join(sourcePath, 'play.asm'), moduleName),
-        (join(sourcePath, 'wav.asm'), moduleName),
+        (join(sourcePath, 'play.win32.asm'), moduleName),
+        (join(sourcePath, 'wav.win32.asm'), moduleName),
+        (join(sourcePath, 'play.elf32.asm'), moduleName),
+        (join(sourcePath, 'wav.elf32.asm'), moduleName),
     ],
     hiddenimports=[],
     hookspath=[],
