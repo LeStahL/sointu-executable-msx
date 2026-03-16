@@ -41,6 +41,7 @@ if __name__ == '__main__':
     parser.add_argument('--sample-type', dest='sampleType', default='float', choices=['float', 'pcm'], help='Enforce the sample type for 4klang builds.')
     parser.add_argument('--channel-count', dest='channelCount', default=2, help='Enforce channel count for 4klang builds.')
     parser.add_argument('--sample-size', dest='sampleSize', default=4, help='Enforce sample size for 4klang builds.')
+    parser.add_argument('--force-download', dest='forceDownload', action='store_true', help='Force-redownload the cached dependencies.')
     args: Namespace = parser.parse_args()
 
     # Check argument sanity
@@ -68,14 +69,17 @@ if __name__ == '__main__':
     crinkler: Path = cached_path(
         url_or_filename='https://github.com/runestubbe/Crinkler/releases/download/v2.3/crinkler23.zip!crinkler23/Win64/Crinkler.exe',
         extract_archive=True,
+        force_download=args.forceDownload,
     )
     nasm: Path = cached_path(
         url_or_filename='https://www.nasm.us/pub/nasm/releasebuilds/2.16.01/win64/nasm-2.16.01-win64.zip!nasm-2.16.01/nasm.exe',
         extract_archive=True,
+        force_download=args.forceDownload,
     )
     sointu: Path = cached_path(
-        'https://github.com/vsariola/sointu/releases/download/v0.3.0/sointu-Windows.zip!sointu-windows/sointu-compile.exe',
+        'https://github.com/vsariola/sointu/releases/latest/download/sointu-Windows.zip!sointu-windows/sointu-compile.exe',
         extract_archive=True,
+        force_download=args.forceDownload,
     ) if args.sointuCompile is None else Path(args.sointuCompile)
 
     # Find Windows SDK path.
