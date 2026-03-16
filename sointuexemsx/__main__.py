@@ -334,6 +334,7 @@ if __name__ == '__main__':
                 '-lc',
                 '-e', 'main',
                 '-I', '/usr/lib/i386-linux-gnu',
+                '-dynamic-linker', '/lib/ld-linux.so.2',
             ]
 
             # Link wav writer.

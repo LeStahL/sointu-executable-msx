@@ -9,7 +9,7 @@ It downloads nasm, Crinkler and Sointu automatically and runs them to generate a
 You need a recent version of the Windows SDK installed. This can be achieved by installing either Visual Studio or MSVC build tools, and enabling the "Windows 10 SDK" workload in the installer.
 
 ### Linux
-You need to install i386 libraries in `/usr/lib/i386-linux-gnu` for libc6 and libasound. Also make sure to install upx, ld and nasm using your package manager. Note: GM.DLS will not work.
+You need to install i386 libraries in `/usr/lib/i386-linux-gnu` for libc6, pipewire-alsa and libasound. Also make sure to install upx, ld and nasm using your package manager. Note: GM.DLS will not work.
 
 ## Usage
 ```
