@@ -101,6 +101,7 @@ if __name__ == '__main__':
     parser.add_argument('--force-download', dest='forceDownload', action='store_true', help='Force-redownload the cached dependencies.')
     parser.add_argument('--ld', dest='ld', default='ld', help='Use this ld binary instead of the one in the PATH variable.')
     parser.add_argument('--build-folder', dest='buildFolder', default=None, help='Use a specific build folder instead of a temporary dir.')
+    parser.add_argument('--disable-upx', dest='disableUpx', action='store_true', help='Disable UPX for drop-in replacement compressing linkers for ld.')
     args: Namespace = parser.parse_args()
 
     # Check argument sanity
@@ -361,6 +362,33 @@ if __name__ == '__main__':
                 print("Could not link player.")
             else:
                 print("Linked player.")
+
+            if not args.disableUpx:
+                # Compress wav writer using UPX.
+                # Note: When using the list based api, quotes in arguments
+                # are not escaped properly.
+                result: CompletedProcess = run(' '.join(map(str, [
+                    str(programs[DependencyType.Upx]),
+                    '--best',
+                    outputDirectory / f'{base}-wav{binaryFileExtension}',
+                ])), shell=True)
+                if result.returncode != 0:
+                    print("Could not upx-compress wav writer.")
+                else:
+                    print("upx-compressed wav writer.")
+
+                # Compress player using UPX.
+                # Note: When using the list based api, quotes in arguments
+                # are not escaped properly.
+                result: CompletedProcess = run(' '.join(map(str, [
+                    str(programs[DependencyType.Upx]),
+                    '--best',
+                    outputDirectory / f'{base}-play{binaryFileExtension}',
+                ])), shell=True)
+                if result.returncode != 0:
+                    print("Could not upx-compress player.")
+                else:
+                    print("upx-compressed player.")
 
         # Create release archive.
         zipFile: ZipFile = ZipFile(f'{base}.zip', 'w')
