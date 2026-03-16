@@ -206,12 +206,13 @@ if __name__ == '__main__':
             platformPrefix = 'elf32'
             nasmAbi = 'elf32'
 
+        trackInclude: Path = outputDirectory / f'{base}.inc'
         nasmArgs: list[str] = [
             str(programs[DependencyType.Nasm]),
             '-f', nasmAbi,
             '-I', str(outputDirectory),
             f'-DFILENAME="{base}.wav"',
-            f'-DTRACK_INCLUDE="{outputDirectory / f'{base}.inc'}"',
+            f'-DTRACK_INCLUDE="{trackInclude}"',
         ]
 
         if args.delay != 0:
