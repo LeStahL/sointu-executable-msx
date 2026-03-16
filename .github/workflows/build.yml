@@ -1,39 +1,36 @@
 name: build-binary
 
 on:
-push:
-tags:
-- "v*"
-workflow_dispatch:
+  push:
+    branches:
+      - master
+      - dev
+    tags:
+      - "v*"
 
 jobs:
-build:
-strategy:
-  matrix:
-    os: [ubuntu-latest, windows-latest, macos-latest]
-
-runs-on: ${{ matrix.os }}
-
-steps:
-  - name: Checkout repo
-    uses: actions/checkout@v4
-
-  - name: Install Python
-    uses: actions/setup-python@v5
-    with:
-      python-version: "3.11"
-
-  - name: Install Poetry
-    run: pip install poetry
-
-  - name: Install dependencies
-    run: poetry install --no-interaction --no-root
-
-  - name: Install PyInstaller
-    run: poetry run pyinstaller pyinstaller.spec
-
-  - name: Upload artifact
-    uses: actions/upload-artifact@v4
-    with:
-      name: binary
-      path: dist/
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install Poetry
+        run: pip install poetry
+      - name: Install dependencies
+        run: poetry install --no-interaction --no-root
+      - name: Install PyInstaller
+        run: poetry run pip install pyinstaller
+      - name: Build binary
+        run: poetry run pyinstaller pyinstaller.spec
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.os }}
+          path: dist/
