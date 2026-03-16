@@ -69,17 +69,14 @@ if __name__ == '__main__':
     crinkler: Path = cached_path(
         url_or_filename='https://github.com/runestubbe/Crinkler/releases/download/v2.3/crinkler23.zip!crinkler23/Win64/Crinkler.exe',
         extract_archive=True,
-        force_download=args.forceDownload,
     )
     nasm: Path = cached_path(
         url_or_filename='https://www.nasm.us/pub/nasm/releasebuilds/2.16.01/win64/nasm-2.16.01-win64.zip!nasm-2.16.01/nasm.exe',
         extract_archive=True,
-        force_download=args.forceDownload,
     )
     sointu: Path = cached_path(
         'https://github.com/vsariola/sointu/releases/latest/download/sointu-Windows.zip!sointu-windows/sointu-compile.exe',
         extract_archive=True,
-        force_download=args.forceDownload,
     ) if args.sointuCompile is None else Path(args.sointuCompile)
 
     # Find Windows SDK path.
