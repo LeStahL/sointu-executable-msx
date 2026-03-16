@@ -2,10 +2,13 @@ from argparse import (
     ArgumentParser,
     Namespace,
 )
-from typing import List
+from typing import Optional
 from importlib.resources import files
 import sointuexemsx
-from cached_path import cached_path
+from cached_path import (
+    cached_path,
+    get_cache_dir,
+)
 from pathlib import Path
 from winreg import (
     ConnectRegistry,
@@ -27,7 +30,48 @@ from os.path import (
 )
 from zipfile import ZipFile
 from sys import exit
-from shutil import copyfile
+from shutil import (
+    copyfile,
+    rmtree,
+)
+from enum import StrEnum
+from json import loads
+
+
+class DownloadUrls(StrEnum):
+    Crinkler = 'https://github.com/runestubbe/Crinkler/releases/download/v2.3/crinkler23.zip!crinkler23/Win64/Crinkler.exe'
+    Nasm = 'https://www.nasm.us/pub/nasm/releasebuilds/2.16.01/win64/nasm-2.16.01-win64.zip!nasm-2.16.01/nasm.exe'
+    SointuCompile = 'https://github.com/vsariola/sointu/releases/latest/download/sointu-Windows.zip!sointu-windows/sointu-compile.exe'
+
+
+def clear_cached_path(
+    url: str,
+    cache_dir: Optional[str] = None,
+):
+    cache_root: Path = Path(cache_dir or get_cache_dir()).expanduser()
+    result: list = []
+    for metadata in cache_root.glob("*.json"):
+        data: dict = {}
+        try:
+            data = loads(metadata.read_text())
+        except Exception:
+            continue
+
+        if data.get("resource") == url.split('!')[0]:
+            base = metadata.with_suffix("")
+            for target in [
+                base,
+                metadata,
+                cache_root / f"{base.name}-extracted"
+            ]:
+                if target.exists():
+                    if target.is_dir():
+                        rmtree(target)
+                    else:
+                        target.unlink()
+                    result.append(target)
+    return result
+
 
 if __name__ == '__main__':
     # Parse command line arguments.
@@ -41,6 +85,7 @@ if __name__ == '__main__':
     parser.add_argument('--sample-type', dest='sampleType', default='float', choices=['float', 'pcm'], help='Enforce the sample type for 4klang builds.')
     parser.add_argument('--channel-count', dest='channelCount', default=2, help='Enforce channel count for 4klang builds.')
     parser.add_argument('--sample-size', dest='sampleSize', default=4, help='Enforce sample size for 4klang builds.')
+    parser.add_argument('--force-download', dest='forceDownload', action='store_true', help='Force-redownload the cached dependencies.')
     args: Namespace = parser.parse_args()
 
     # Check argument sanity
@@ -64,17 +109,23 @@ if __name__ == '__main__':
         print("4klang assembly file does not exist:", args.fourKlang)
         exit(1)
 
+    if args.forceDownload:
+        print("Clearing cache.")
+        for url in DownloadUrls:
+            for deletedPath in clear_cached_path(url.value):
+                print(f"Removing {deletedPath}")
+
     # Download dependencies.
     crinkler: Path = cached_path(
-        url_or_filename='https://github.com/runestubbe/Crinkler/releases/download/v2.3/crinkler23.zip!crinkler23/Win64/Crinkler.exe',
+        url_or_filename=DownloadUrls.Crinkler.value,
         extract_archive=True,
     )
     nasm: Path = cached_path(
-        url_or_filename='https://www.nasm.us/pub/nasm/releasebuilds/2.16.01/win64/nasm-2.16.01-win64.zip!nasm-2.16.01/nasm.exe',
+        url_or_filename=DownloadUrls.Nasm.value,
         extract_archive=True,
     )
     sointu: Path = cached_path(
-        'https://github.com/vsariola/sointu/releases/download/v0.3.0/sointu-Windows.zip!sointu-windows/sointu-compile.exe',
+        url_or_filename=DownloadUrls.SointuCompile.value,
         extract_archive=True,
     ) if args.sointuCompile is None else Path(args.sointuCompile)
 
@@ -96,10 +147,10 @@ if __name__ == '__main__':
         outputDirectory: Path = Path(temporaryDirectory)
         print('Exporting to:', outputDirectory) 
 
-        nasmArgs: List[str] = [
-            nasm,
+        nasmArgs: list[str] = [
+            str(nasm),
             '-f', 'win32',
-            '-I', outputDirectory,
+            '-I', str(outputDirectory),
             '-DFILENAME="{}.wav"'.format(base),
             '-DTRACK_INCLUDE="{}"'.format(outputDirectory / '{}.inc'.format(base)),
         ]
@@ -142,8 +193,8 @@ if __name__ == '__main__':
 
         # Assemble the wav writer.
         result: CompletedProcess = run(nasmArgs + [
-            files(sointuexemsx) / 'wav.asm',
-            '-o', outputDirectory / 'wav.obj',
+            str(files(sointuexemsx) / 'wav.asm'),
+            '-o', str(outputDirectory / 'wav.obj'),
         ])
 
         if result.returncode != 0:
@@ -153,8 +204,8 @@ if __name__ == '__main__':
 
         # Assemble the player.
         result: CompletedProcess = run(nasmArgs + [
-            files(sointuexemsx) / 'play.asm',
-            '-o', outputDirectory / 'play.obj',
+            str(files(sointuexemsx) / 'play.asm'),
+            '-o', str(outputDirectory / 'play.obj'),
         ])
 
         if result.returncode != 0:
@@ -176,14 +227,14 @@ if __name__ == '__main__':
         else:
             print("Assembled track.")
 
-        crinklerArgs: List[str] = [
-            crinkler,
+        crinklerArgs: list[str] = [
+            str(crinkler),
             '/LIBPATH:"{}"'.format(outputDirectory),
             '/LIBPATH:"{}"'.format(windowsSdkLibPath),
             'Winmm.lib',
             'Kernel32.lib',
             'User32.lib',
-            outputDirectory / '{}.obj'.format(base),
+            str(outputDirectory / '{}.obj'.format(base)),
         ]
 
         # Link wav writer.
