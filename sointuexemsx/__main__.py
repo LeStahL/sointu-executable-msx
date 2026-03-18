@@ -141,7 +141,7 @@ if __name__ == '__main__':
     if args.forceDownload:
         print("Clearing cache.")
         for url in downloadUrls.values():
-            for deletedPath in clear_cached_path(url.value):
+            for deletedPath in clear_cached_path(url):
                 print(f"Removing {deletedPath}")
 
     programs = {}
