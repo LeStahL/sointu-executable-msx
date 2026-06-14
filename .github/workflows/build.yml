@@ -48,15 +48,12 @@ jobs:
       - name: Package artifact (Linux)
         if: runner.os == 'Linux'
         run: |
-          cd dist
-          zip -r "../sointu-executable-msx-${{ steps.version.outputs.version }}-${{ matrix.config.artifact_os }}.zip" .
+          mv dist/sointuexemsx-Linux.zip "sointu-executable-msx-${{ steps.version.outputs.version }}-${{ matrix.config.artifact_os }}.zip"
       - name: Package artifact (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          Compress-Archive `
-            -Path dist\* `
-            -DestinationPath "sointu-executable-msx-${{ steps.version.outputs.version }}-${{ matrix.config.artifact_os }}.zip"
+          Move-Item "dist\sointuexemsx-Windows.zip" "sointu-executable-msx-${{ steps.version.outputs.version }}-${{ matrix.config.artifact_os }}.zip"
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
