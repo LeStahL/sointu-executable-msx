@@ -24,9 +24,9 @@ jobs:
             artifact_os: windows
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install Python 3.12
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Install poetry
@@ -48,17 +48,14 @@ jobs:
       - name: Package artifact (Linux)
         if: runner.os == 'Linux'
         run: |
-          cd dist
-          zip -r "../sointu-executable-msx-${{ steps.version.outputs.version }}-${{ matrix.config.artifact_os }}.zip" .
+          mv dist/sointuexemsx-Linux.zip "sointu-executable-msx-${{ steps.version.outputs.version }}-${{ matrix.config.artifact_os }}.zip"
       - name: Package artifact (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          Compress-Archive `
-            -Path dist\* `
-            -DestinationPath "sointu-executable-msx-${{ steps.version.outputs.version }}-${{ matrix.config.artifact_os }}.zip"
+          Move-Item "dist\sointuexemsx-Windows.zip" "sointu-executable-msx-${{ steps.version.outputs.version }}-${{ matrix.config.artifact_os }}.zip"
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sointu-executable-msx-${{ steps.version.outputs.version }}-${{ matrix.config.artifact_os }}
           path: sointu-executable-msx-${{ steps.version.outputs.version }}-${{ matrix.config.artifact_os }}.zip
@@ -68,12 +65,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
           merge-multiple: true
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
           generate_release_notes: true
