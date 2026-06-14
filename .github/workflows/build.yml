@@ -19,7 +19,9 @@ jobs:
       matrix:
         config:
           - os: ubuntu-latest
+            artifact_os: linux
           - os: windows-latest
+            artifact_os: windows
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -33,40 +35,48 @@ jobs:
         run: poetry install --no-interaction --no-root
       - name: Build binary
         run: poetry run pyinstaller pyinstaller.spec
-      - name: Pack artifact (Linux)
+      - name: Determine version
+        id: version
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            VERSION="${GITHUB_REF_NAME}"
+          else
+            VERSION="${GITHUB_SHA::7}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+      - name: Package artifact (Linux)
         if: runner.os == 'Linux'
         run: |
           cd dist
-          zip -r ../binary-linux.zip .
-      - name: Pack artifact (Windows)
+          zip -r "../sointu-executable-msx-${{ steps.version.outputs.version }}-${{ matrix.config.artifact_os }}.zip" .
+      - name: Package artifact (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          Compress-Archive -Path dist\* -DestinationPath binary-windows.zip
+          Compress-Archive `
+            -Path dist\* `
+            -DestinationPath "sointu-executable-msx-${{ steps.version.outputs.version }}-${{ matrix.config.artifact_os }}.zip"
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: binary-${{ matrix.config.os }}
-          path: |
-            binary-linux.zip
-            binary-windows.zip
-
+          name: sointu-executable-msx-${{ steps.version.outputs.version }}-${{ matrix.config.artifact_os }}
+          path: sointu-executable-msx-${{ steps.version.outputs.version }}-${{ matrix.config.artifact_os }}.zip
   release:
     if: startsWith(github.ref, 'refs/tags/')
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Download build artifacts
+      - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
-      - name: Create Release
-        id: create_release
+          merge-multiple: true
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           generate_release_notes: true
-          files: |
-            artifacts/**/*.zip
+          files: artifacts/*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
