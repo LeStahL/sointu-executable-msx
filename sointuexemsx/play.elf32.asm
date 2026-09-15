@@ -53,9 +53,11 @@ main:
 	push render_thread
 	call pthread_create
 
-	; We can't start playing too early or the missing samples will be audible.
-	push 0x2
+%ifdef ADD_DELAY
+    ; We can't start playing too early or the missing samples will be audible.
+	push DELAY_MS
 	call sleep
+%endif ; ADD_DELAY
 
 	; Play the track.
 	push 0x0
