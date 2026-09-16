@@ -55,7 +55,7 @@ main:
 
 %ifdef ADD_DELAY
     ; We can't start playing too early or the missing samples will be audible.
-	push DELAY_MS
+	push DELAY_S
 	call sleep
 %endif ; ADD_DELAY
 

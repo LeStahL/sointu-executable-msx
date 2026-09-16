@@ -106,7 +106,7 @@ _mainCRTStartup:
 
 %ifdef ADD_DELAY
     ; We can't start playing too early or the missing samples will be audible.
-	push DELAY_MS
+	push DELAY_S * 1000
 	call _Sleep@4
 %endif ; ADD_DELAY
 

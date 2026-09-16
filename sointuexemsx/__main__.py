@@ -218,7 +218,7 @@ if __name__ == '__main__':
         if args.delay != 0:
             nasmArgs += [
                 '-DADD_DELAY',
-                f'-DDELAY_MS={args.delay // 1000}',
+                f'-DDELAY_S={args.delay // 1000}',
             ]
 
         if args.fourKlang is not None:
